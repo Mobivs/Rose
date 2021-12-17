@@ -102,13 +102,14 @@ void checkMagnetPresence()
 int ENA = 14;
 int IN1 = 0;
 int IN2 = 2;
+bool panMotorRunning = false;
 
-void panCW(){
+void panCCW(){
 digitalWrite(ENA, HIGH); // set speed to 200 out of possible range 0~255
 digitalWrite(IN1, HIGH);
 digitalWrite(IN2, LOW);
 }
-void panCCW(){
+void panCW(){
   digitalWrite(ENA, HIGH); // set speed to 200 out of possible range 0~255
   digitalWrite(IN1, LOW);
   digitalWrite(IN2, HIGH);
@@ -119,25 +120,30 @@ void panStop(){
   digitalWrite(ENA, LOW); // set speed to 200 out of possible range 0~255
 }
 void setPanAngle(int targetAngle){
-  int currentPanAngle = ReadRawAngle();
-  int diffAngle = currentPanAngle - targetAngle;
-  while(currentPanAngle != targetAngle){
-    currentPanAngle = ReadRawAngle();
-    diffAngle = currentPanAngle - targetAngle;
-    if(abs(diffAngle) < 2048){
-      if(diffAngle > 0){
-        panCW();
+  int diffAngle = ReadRawAngle() - targetAngle;
+  while(abs(diffAngle) > 1){  
+    //if(panMotorRunning == false){
+      if(abs(diffAngle) < 2048){
+        if(diffAngle > 0){
+          panCW();
+        }else{
+          panCCW();
+        }
       }else{
-        panCCW();
-      }
-    }else{
-      if(diffAngle > 0){
-        panCCW();
-      }else{
-        panCW();
-      }
-    }    
-  }   
+        if(diffAngle > 0){
+          panCCW();
+        }else{
+          panCW();
+        }
+        //panMotorRunning = true;
+      }  
+    //}
+    diffAngle = ReadRawAngle() - targetAngle;
+  } 
+  panStop();
+  Serial.println("Stopping Motor");
+  Serial.print("diffAngle - ");
+  Serial.println(diffAngle);
 }
 
 //---------------------------------------------------------------------------
@@ -146,6 +152,14 @@ void setPanAngle(int targetAngle){
 void moveNozzle(int tiltAngle, int panAngle){
   setTiltAngle(tiltAngle);
   setPanAngle(panAngle);
+}
+void parkNozzle(){
+  moveNozzle(180, 0);
+  delay(500);
+  moveNozzle(180, 0);
+  delay(500);
+  moveNozzle(180, 0);
+  delay(500);
 }
 void logPosition(){
   Serial.print("Pan Angle: ");
@@ -157,7 +171,8 @@ void logPosition(){
 void setup() { 
 //checkMagnetPresence(); //check the magnet (blocks until magnet is found)
   myservo.attach(servo_pin);  //Set Tilt Servo
-  pinMode(ENA, OUTPUT); // set all the pan motor control pins to outputs
+
+  /*pinMode(ENA, OUTPUT); // set all the pan motor control pins to outputs
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
 
@@ -188,13 +203,23 @@ void setup() {
   Serial.print("Found ");
   Serial.print(count, HEX);
   Serial.println(" Device(s).");
-  
+  */
 } 
 
 
 
-void loop() { // move from 0 to 180 degrees with a positive angle of 1
-  ReadRawAngle();
-  logPosition();
-  delay(500);
+void loop() { 
+  
+  int iDelay = 50;
+  for (int i = 0; i > 179; i++){
+    myservo.write(0);
+  
+    delay(iDelay);
+  }
+  for (int i = 180; i < 1; i--){
+    myservo.write(180);
+ 
+    delay(iDelay);
+  }
+  
 }
